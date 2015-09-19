@@ -1,0 +1,24 @@
+{- Translates the AST into a stateless intermediate representation (hence Functional IR)
+expr = id | num | [expr]
+
+
+
+-}
+
+module FIR(fir) where
+import qualified Main
+data Expr = Id String | Num Integer | Cons [Expr] | Nil deriving (Show)
+
+fir :: [Main.Stmt]->Expr
+fir [] = Nil
+
+firStmt :: Main.Stmt->Expr
+firStmt = Nil
+
+firExpr :: Main.Expr->Expr
+firExpr (Main.Id s) = Id s
+firExpr (Main.Num n) = Num n
+firExpr (Main.Range i j) = Cons [(Id "range"), (Num i), (Num j)]
+firExpr (Main.FuncExpr s l) = Cons $ [(Id s)]++ (map firExpr l)
+firExpr (Main.FuncLit [] stmts) = fir stmts
+firExpr (Main.FuncLit (x:xs) stmts) = Cons [(Id "lambda"), (Id x), firExpr xs stmts]
