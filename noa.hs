@@ -4,7 +4,8 @@ import qualified Text.Parsec as Parsec
 import Control.Applicative
 
 data Expr = Id String | Num Integer | Range Integer Integer | FuncExpr String [Expr] | FuncLit [String] [Stmt] deriving (Show)
-data NoaType = Prim String deriving (Show)
+data NoaType = TCons String TypeTail deriving (Show)
+data TypeTail = Tail NoaType | NilTail deriving (Show)
 data Stmt = Assign String Expr NoaType | Foreach Expr [Stmt] | FuncStmt String [Expr] | If Expr [Stmt] [Stmt] deriving (Show)
 parse rule text = Parsec.parse rule "(source)" text
 
@@ -82,9 +83,9 @@ assignStmt = do
   Parsec.spaces
   dblcolon
   Parsec.spaces
-  t <- ident
+  t <- parseType
   Parsec.spaces
-  return $ Assign val e $ Prim t
+  return $ Assign val e t
 
 foreachStmt :: Parsec.Parsec String () Stmt
 foreachStmt = do
@@ -109,6 +110,43 @@ parens = do
   Parsec.char ')'
   Parsec.spaces
   return e
+
+
+parensType :: Parsec.Parsec String () NoaType
+parensType = do
+  Parsec.char '('
+  Parsec.spaces
+  t<-parseType
+  Parsec.spaces
+  Parsec.char ')'
+  Parsec.spaces
+  return t
+
+idType :: Parsec.Parsec String () NoaType
+idType = do
+  t<-ident
+  Parsec.spaces
+  s<-typeTail
+  Parsec.spaces
+  return $ TCons t s
+
+fullTail :: Parsec.Parsec String () TypeTail
+fullTail = do
+  Parsec.string "->"
+  Parsec.spaces
+  t<-parseType
+  Parsec.spaces
+  return $ Tail t
+
+nilTail :: Parsec.Parsec String () TypeTail
+nilTail = do
+  return NilTail
+  
+typeTail :: Parsec.Parsec String () TypeTail
+typeTail = Parsec.try fullTail <|> nilTail
+
+parseType :: Parsec.Parsec String () NoaType
+parseType = idType <|> parensType
 
 funcLit :: Parsec.Parsec String () Expr
 funcLit = do
@@ -159,4 +197,4 @@ prog = do
   return s
 
 main :: IO ()
-main = putStrLn $ show $ parse prog "a = {a b -> if(a){}else{};} :: Num;"
+main = putStrLn $ show $ parse assignStmt "a={->}::a->(b);"
